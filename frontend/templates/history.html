@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LeukaScan — History</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/styles.css" />
+</head>
+<body>
+
+  <header>
+    <div class="logo">
+      <span class="logo-mark">◈</span>
+      <span class="logo-text">LeukaScan</span>
+      <span class="logo-sub">v1.0</span>
+    </div>
+    <nav>
+      <a href="/">Analyse</a>
+      <a href="/history">History</a>
+      <a href="/docs" target="_blank">API Docs</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="history-header">
+      <div>
+        <p class="eyebrow">Past Analyses</p>
+        <h1 style="font-size:1.8rem;font-weight:600;margin-top:.25rem;">Analysis History</h1>
+      </div>
+      <button class="btn btn-outline" id="clearAllBtn">🗑 Clear All</button>
+    </div>
+
+    <div id="historyEmpty" class="empty-state hidden">
+      <div class="empty-icon">📋</div>
+      <p>No analyses yet.</p>
+      <a href="/" class="btn btn-primary" style="margin-top:1rem;">Analyse an Image</a>
+    </div>
+
+    <div id="historyGrid" class="history-grid"></div>
+  </main>
+
+  <footer>
+    <span>LeukaScan · YOLOv8 + ResNet-50 · Research prototype</span>
+  </footer>
+
+  <script>
+    async function loadHistory() {
+      const res = await fetch('/api/history/');
+      const data = await res.json();
+      const records = data.history || [];
+
+      const grid = document.getElementById('historyGrid');
+      const empty = document.getElementById('historyEmpty');
+
+      if (records.length === 0) {
+        empty.classList.remove('hidden');
+        grid.innerHTML = '';
+        return;
+      }
+
+      empty.classList.add('hidden');
+      grid.innerHTML = '';
+
+      records.forEach(r => {
+        const isPositive = r.slide_diagnosis &&
+          r.slide_diagnosis.toLowerCase().includes('detected') &&
+          !r.slide_diagnosis.toLowerCase().includes('no ');
+
+        const card = document.createElement('div');
+        card.className = 'history-card';
+        card.innerHTML = `
+          <div class="history-card-top ${isPositive ? 'positive' : 'negative'}">
+            <span class="history-verdict-icon">${isPositive ? '⚠' : '✓'}</span>
+            <div>
+              <div class="history-diagnosis">${r.slide_diagnosis || 'N/A'}</div>
+              <div class="history-time">${r.timestamp}</div>
+            </div>
+            <button class="btn-ghost delete-btn" data-id="${r.id}">✕</button>
+          </div>
+          <div class="history-card-body">
+            <div class="history-meta">
+              <span class="history-filename">📄 ${r.image_name || 'unknown'}</span>
+            </div>
+            <div class="history-stats">
+              <div class="history-stat">
+                <span class="history-stat-val">${((r.slide_confidence || 0)*100).toFixed(1)}%</span>
+                <label>Confidence</label>
+              </div>
+              <div class="history-stat">
+                <span class="history-stat-val">${r.total_cells_detected || 0}</span>
+                <label>Cells</label>
+              </div>
+              <div class="history-stat danger">
+                <span class="history-stat-val">${r.leukemic_cells || 0}</span>
+                <label>Blasts</label>
+              </div>
+              <div class="history-stat safe">
+                <span class="history-stat-val">${r.normal_cells || 0}</span>
+                <label>Normal</label>
+              </div>
+            </div>
+            <div class="history-ratio-bar-bg">
+              <div class="history-ratio-bar-fill"
+                   style="width:${((r.leukemic_cell_ratio||0)*100).toFixed(1)}%"></div>
+            </div>
+            <div style="font-size:.7rem;color:var(--text-muted);margin-top:.3rem;">
+              Blast ratio: ${((r.leukemic_cell_ratio||0)*100).toFixed(1)}%
+            </div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+
+      // Delete buttons
+      document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', async function(e) {
+          e.stopPropagation();
+          const id = this.dataset.id;
+          await fetch(`/api/history/${id}`, { method: 'DELETE' });
+          loadHistory();
+        });
+      });
+    }
+
+    // Clear all
+    document.getElementById('clearAllBtn').addEventListener('click', async function() {
+      if (!confirm('Clear all history?')) return;
+      await fetch('/api/history/', { method: 'DELETE' });
+      loadHistory();
+    });
+
+    loadHistory();
+  </script>
+</body>
+</html>

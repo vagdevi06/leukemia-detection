@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+
+# Model weights (large files)
+weights/*.pt
+weights/*.pth
+
+# Data (large files)
+data/raw/
+data/processed/
+data/processed2/
+
+# Test images
+test_image.jpg
+test_normal.jpg
+test_normal2.png
+
+# Logs
+logs/
+runs/
+*.log
+
+# Mac
+.DS_Store
+
+# Env
+.env

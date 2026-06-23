@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LeukaScan — Lymphocytic Leukemia Detection</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/styles.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <header>
+    <div class="logo">
+      <span class="logo-mark">◈</span>
+      <span class="logo-text">LeukaScan</span>
+      <span class="logo-sub">v1.0</span>
+    </div>
+    <nav>
+      <a href="/">Analyse</a>
+      <a href="/history">History</a>
+      <a href="/docs" target="_blank">API Docs</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <div class="hero-text">
+      <p class="eyebrow">Deep-Learning Diagnostic Aid</p>
+      <h1>Lymphocytic Leukemia<br/>Detection from Blood Smears</h1>
+      <p class="hero-sub">
+        Upload a blood-smear microscopy image. YOLOv8 isolates individual cells;
+        a CNN classifier evaluates each one. Results in seconds.
+      </p>
+    </div>
+    <div class="pipeline-strip">
+      <div class="pipe-step">
+        <span class="pipe-num">01</span>
+        <span class="pipe-label">Upload<br/>Smear</span>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">
+        <span class="pipe-num">02</span>
+        <span class="pipe-label">YOLOv8<br/>Cell Detection</span>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">
+        <span class="pipe-num">03</span>
+        <span class="pipe-label">CNN<br/>Classification</span>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">
+        <span class="pipe-num">04</span>
+        <span class="pipe-label">Slide-Level<br/>Diagnosis</span>
+      </div>
+    </div>
+  </section>
+
+  <main>
+    <div class="card upload-card" id="uploadCard">
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.tif,.tiff" style="display:none" />
+        <div class="drop-icon">⬡</div>
+        <p class="drop-primary">Drop a blood-smear image here</p>
+        <p class="drop-secondary">JPG, PNG, TIF · up to 20 MB</p>
+        <span class="btn btn-outline" id="browseBtn">Browse Files</span>
+      </div>
+
+      <div class="preview-zone hidden" id="previewZone">
+        <img id="previewImg" src="" alt="Preview" />
+        <div class="preview-meta">
+          <span id="previewName" class="mono"></span>
+          <button class="btn-ghost" id="clearBtn">✕ Clear</button>
+        </div>
+        <button class="btn btn-primary" id="analyzeBtn">
+          <span id="analyzeBtnText">Analyse Image</span>
+          <span id="analyzeSpinner" class="spinner hidden"></span>
+        </button>
+      </div>
+    </div>
+
+    <div class="results-panel hidden" id="resultsPanel">
+
+      <!-- Verdict banner -->
+      <div class="verdict-banner" id="verdictBanner">
+        <div class="verdict-icon" id="verdictIcon"></div>
+        <div class="verdict-text">
+          <h2 id="verdictLabel"></h2>
+          <p id="verdictSub"></p>
+        </div>
+        <div class="verdict-conf">
+          <span id="verdictConfVal"></span>
+          <label>slide confidence</label>
+        </div>
+      </div>
+
+      <!-- Quality warnings -->
+      <div id="qualityWarnings" class="hidden"></div>
+
+      <!-- Quality score -->
+      <div class="quality-section hidden" id="qualitySection">
+        <div class="quality-header">
+          <span>Image Quality Score</span>
+          <span id="qualityScore"></span>
+        </div>
+        <div class="quality-bars">
+          <div class="quality-bar-row">
+            <label>Sharpness</label>
+            <div class="quality-bar-bg">
+              <div class="quality-bar-fill" id="blurBar"></div>
+            </div>
+          </div>
+          <div class="quality-bar-row">
+            <label>Brightness</label>
+            <div class="quality-bar-bg">
+              <div class="quality-bar-fill" id="brightnessBar"></div>
+            </div>
+          </div>
+          <div class="quality-bar-row">
+            <label>Contrast</label>
+            <div class="quality-bar-bg">
+              <div class="quality-bar-fill" id="contrastBar"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gauge + Stats -->
+      <div class="gauge-stats-row">
+        <div class="gauge-card">
+          <h3>Confidence Score</h3>
+          <canvas id="gaugeCanvas" width="200" height="120"></canvas>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span class="stat-val" id="statTotal">—</span>
+            <label>Cells Detected</label>
+          </div>
+          <div class="stat-card danger">
+            <span class="stat-val" id="statLeuk">—</span>
+            <label>Leukemic Blasts</label>
+          </div>
+          <div class="stat-card safe">
+            <span class="stat-val" id="statNorm">—</span>
+            <label>Normal Lymphocytes</label>
+          </div>
+          <div class="stat-card">
+            <span class="stat-val mono" id="statTime">—</span>
+            <label>Inference Time</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="charts-section">
+        <h3>Cell Analysis Charts</h3>
+        <div class="charts-grid">
+          <div class="chart-card">
+            <h4>Cell Distribution</h4>
+            <canvas id="pieChart"></canvas>
+          </div>
+          <div class="chart-card">
+            <h4>Confidence per Cell</h4>
+            <canvas id="barChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ratio bar -->
+      <div class="ratio-section">
+        <div class="ratio-labels">
+          <span>Blast Ratio</span>
+          <span id="ratioValue">—</span>
+        </div>
+        <div class="ratio-bar-bg">
+          <div class="ratio-bar-fill" id="ratioBarFill"></div>
+        </div>
+        <div class="ratio-scale">
+          <span>0%</span>
+          <span class="threshold-label">50% threshold</span>
+          <span>100%</span>
+        </div>
+      </div>
+
+      <!-- Annotated image -->
+      <div class="annotated-section">
+        <h3>Annotated Smear <span class="tag">YOLOv8 detections</span></h3>
+        <img id="annotatedImg" src="" alt="Annotated result" />
+      </div>
+
+      <!-- Cell thumbnails -->
+      <div class="thumbnails-section">
+        <h3>Detected Cells <span class="tag" id="cellCount"></span></h3>
+        <div class="thumbnail-grid" id="thumbnailGrid"></div>
+      </div>
+
+      <!-- Cell table -->
+      <div class="cell-table-section">
+        <h3>Per-Cell Breakdown</h3>
+        <div class="table-wrap">
+          <table id="cellTable">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Classification</th>
+                <th>CNN Confidence</th>
+                <th>Bounding Box</th>
+                <th>Blast Prob.</th>
+              </tr>
+            </thead>
+            <tbody id="cellTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Download PDF -->
+      <div class="download-section">
+        <button class="btn btn-primary" id="downloadBtn">
+          ⬇ Download PDF Report
+        </button>
+      </div>
+
+      <p class="disclaimer">
+        ⚠ This tool is a research aid only and is not a certified medical device.
+        All results must be reviewed by a qualified haematologist before clinical use.
+      </p>
+
+      <button class="btn btn-outline" id="newAnalysisBtn">Analyse Another Image</button>
+    </div>
+  </main>
+
+  <footer>
+    <span>LeukaScan · YOLOv8 + ResNet-50 · Research prototype</span>
+  </footer>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
