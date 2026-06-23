@@ -30,4 +30,4 @@ runs/
 .DS_Store
 
 # Env
-.env
+.env*.zip
